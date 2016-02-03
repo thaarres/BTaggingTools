@@ -5,7 +5,7 @@
 #include "core/include/SError.h"
 #include "plug-ins/include/SToolBase.h"
 
-#include "../Common/D3PDVariables/include/Jet.h"
+#include "../NtupleVariables/include/Jet.h"
 
 #include "../include/BTagCalibrationStandalone.h"
 
@@ -26,13 +26,13 @@ class BTaggingScaleTool : public SToolBase {
   /// function booking histograms
   void BeginInputData( const SInputData& id ) throw( SError );
 
-  //  double getScaleFactor( const DESY::Jet& jet, double sigma_shift = 0. );
-  double getScaleFactor( const DESY::Jet& jet, double sigma = 0.);
+  //  double getScaleFactor( const UZH::Jet& jet, double sigma_shift = 0. );
+  double getScaleFactor( const UZH::Jet& jet, double sigma = 0.);
 
 
-  //  double getScaleFactor( const std::vector< DESY::Jet >& vJets, double sigma_shift );
-  //  double getScaleFactor( const DESY::JetVec& vJets, double sigma_shift = 0.);
-  double getScaleFactor( const DESY::JetVec& vJets, double sigma = 0.);
+  //  double getScaleFactor( const std::vector< UZH::Jet >& vJets, double sigma_shift );
+  //  double getScaleFactor( const UZH::JetVec& vJets, double sigma_shift = 0.);
+  double getScaleFactor( const UZH::JetVec& vJets, double sigma = 0.);
 
  private:
 
