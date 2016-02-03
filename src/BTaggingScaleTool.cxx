@@ -71,7 +71,7 @@ void BTaggingScaleTool::BeginInputData( const SInputData& ) throw( SError ) {
 
 }
                                                                                     
-double BTaggingScaleTool::getScaleFactor( const DESY::Jet& jet, double sigma ) {
+double BTaggingScaleTool::getScaleFactor( const UZH::Jet& jet, double sigma ) {
 
   // Flavor
   BTagEntry::JetFlavor flavor = BTagEntry::FLAV_UDSG;
@@ -141,13 +141,13 @@ double BTaggingScaleTool::getScaleFactor( const DESY::Jet& jet, double sigma ) {
 //
 // return scale for Jet collection
 //
-double BTaggingScaleTool::getScaleFactor( const DESY::JetVec& vJets, double sigma ) {
+double BTaggingScaleTool::getScaleFactor( const UZH::JetVec& vJets, double sigma ) {
 
   double scale = 1.;
   
   m_logger << DEBUG << "BTaggingScaleTool::getScaleFactor" << SLogger::endmsg;
 
-  for (std::vector< DESY::Jet>::const_iterator itJet = vJets.begin(); itJet < vJets.end(); ++itJet) {
+  for (std::vector< UZH::Jet>::const_iterator itJet = vJets.begin(); itJet < vJets.end(); ++itJet) {
     m_logger << DEBUG << "Looking at jet " << itJet - vJets.begin()
 	     << ", pT=" << (*itJet).pt() << ", eta=" << (*itJet).eta()
 	     << SLogger::endmsg;
