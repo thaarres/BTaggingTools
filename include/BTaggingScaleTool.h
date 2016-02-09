@@ -25,14 +25,35 @@ class BTaggingScaleTool : public SToolBase {
 
   /// function booking histograms
   void BeginInputData( const SInputData& id ) throw( SError );
+  
+  double getScaleFactor( const double& pt, const double& eta, const int& flavour, bool isTagged, const double& sigma = 0.);
 
-  //  double getScaleFactor( const UZH::Jet& jet, double sigma_shift = 0. );
-  double getScaleFactor( const UZH::Jet& jet, double sigma = 0.);
+  double getScaleFactor( const UZH::Jet& jet, const double& sigma = 0.);
+  
+  double getPrunedSubjetScaleFactor( const UZH::Jet& jet, const double& sigma = 0.);
 
-
-  //  double getScaleFactor( const std::vector< UZH::Jet >& vJets, double sigma_shift );
-  //  double getScaleFactor( const UZH::JetVec& vJets, double sigma_shift = 0.);
-  double getScaleFactor( const UZH::JetVec& vJets, double sigma = 0.);
+  double getScaleFactor( const UZH::JetVec& vJets, const double& sigma = 0.);
+  
+  double getPrunedSubjetScaleFactor( const UZH::JetVec& vJets, const double& sigma = 0.);
+  
+  /// function to book histograms for efficiencies
+  void bookHistograms();
+  
+  /// function to fill jet b-tagging efficiencies
+  void fillEfficiencies( const UZH::JetVec& vJets );
+  
+  /// function to fill subjet b-tagging efficiencies
+  void fillPrunedSubjetEfficiencies( const UZH::JetVec& vJets );
+  
+  /// function to convert flavor integer to TString
+  TString flavourToString( const int& flavour );
+  
+  /// helper function to check if jet is b-tagged
+  bool isTagged( const UZH::Jet& jet );
+  
+  /// helper function to check if jet is b-tagged passing CSV value directly
+  bool isTagged( const double& csv );
+  
 
  private:
 
@@ -40,12 +61,16 @@ class BTaggingScaleTool : public SToolBase {
   std::string m_tagger;
   std::string m_workingPoint;
   std::string m_csvFile;
-  std::string m_measurementType;
+  std::string m_measurementType_udsg;
+  std::string m_measurementType_bc;
+  std::string m_effHistDirectory;
+  
+  std::map<std::string, double> wpCuts; // could have a function to set these
+  double currentWorkingPointCut;
 
-  BTagCalibration*       m_calib;
-  BTagCalibrationReader* m_reader;
-  BTagCalibrationReader* m_reader_up;
-  BTagCalibrationReader* m_reader_down;
+  std::unique_ptr<BTagCalibrationReader> m_reader;
+  std::unique_ptr<BTagCalibrationReader> m_reader_up;
+  std::unique_ptr<BTagCalibrationReader> m_reader_down;
 
 };
 
