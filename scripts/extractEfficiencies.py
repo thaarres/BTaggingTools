@@ -14,8 +14,10 @@ def main():
                     help="name of directory containing histograms within ROOT file [default: %default]")
   parser.add_option("-p", "--prefix", dest="prefix", default="jet_", action="store",
                     help="prefix for histograms [default: %default]")
+  parser.add_option("-w", "--workingpoint", dest="workingpoint", default="Loose", action="store",
+                    help="b-tagging working point [default: %default]")                
   parser.add_option("-r", "--replace", dest="replace", default=False, action="store_true",
-                    help="replace/overwrite output ROOT file [default: %default]")
+                    help="replace/overwrite/recreate output ROOT file [default: %default]")
 
   
   (options, args) = parser.parse_args()
@@ -27,18 +29,20 @@ def main():
   outputFile = options.outputFile
   directory = options.directory
   prefix = options.prefix
+  workingpoint = options.workingpoint
   replace = options.replace
 
   print "Using file list:", fileList
   print "output ROOT file:", outputFile
   print "Using histogram directory:", directory
   print "Using histogram prefix:", prefix
+  print "Using b-tagging working point:", workingpoint
   print "Replacing output ROOT file:", replace
   print "-"*80
   
   # this is hardcoded, but should be fine
   flavourNames = ["udsg", "b", "c"]
-  nominator = "_isTagged"
+  nominator = "_"+workingpoint
   denominator = "_all"
   
   files = []
@@ -55,8 +59,8 @@ def main():
     for i,file in enumerate(files):
       baseHistName = "%s/%s%s" %(directory, prefix, flavour)
       baseHistNameNoDir = "%s%s" %(prefix, flavour)
+      print "Getting histograms for ",baseHistNameNoDir,"in file",file
       if (i == 0):
-        print "Getting histograms for",baseHistNameNoDir
         nomHist = file.Get("%s%s" %(baseHistName, nominator)).Clone("%s%s%03d" %(baseHistNameNoDir, nominator, i))
         denomHist = file.Get("%s%s" %(baseHistName, denominator)).Clone("%s%s%03d" %(baseHistNameNoDir, denominator, i))
         flavNomHist = nomHist.Clone("%s%s_sum" %(baseHistNameNoDir, nominator))
@@ -68,7 +72,7 @@ def main():
         flavDenomHist.Add(denomHist)
     nomHists[flavour] = flavNomHist
     denomHists[flavour] = flavDenomHist
-    effHists[flavour] = flavNomHist.Clone("%s_eff" %(baseHistNameNoDir))
+    effHists[flavour] = flavNomHist.Clone("%s%s_eff" %(baseHistNameNoDir, nominator))
     effHists[flavour].Divide(flavDenomHist)
     nomHists[flavour].SetName("%s%s" %(baseHistNameNoDir, nominator))
     denomHists[flavour].SetName("%s%s" %(baseHistNameNoDir, denominator))
@@ -84,7 +88,11 @@ def main():
   if (replace):
     outFile.mkdir(directory)
   outFile.cd(directory)
+  outDir = outFile.GetDirectory(directory)
   for flavour in flavourNames:
+    if (outDir.GetListOfKeys().Contains(nomHists[flavour].GetName())):
+      print "ERROR: histogram already exist in output file."
+      sys.exit(1)
     nomHists[flavour].Write()
     denomHists[flavour].Write()
     effHists[flavour].Write()

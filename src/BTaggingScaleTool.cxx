@@ -33,6 +33,7 @@ BTaggingScaleTool::BTaggingScaleTool( SCycleBase* parent,
   DeclareProperty( m_name + "_MeasurementType_udsg", m_measurementType_udsg = "comb" );
   DeclareProperty( m_name + "_MeasurementType_bc", m_measurementType_bc = "mujets" );
   DeclareProperty( m_name + "_EffHistDirectory", m_effHistDirectory = "bTagEff" );
+  DeclareProperty( m_name + "_EffFile", m_effFile = sframe_dir + "/../BTaggingTools/efficiencies/bTagEff.root" );
 
 }
 
@@ -55,6 +56,7 @@ void BTaggingScaleTool::BeginInputData( const SInputData& ) throw( SError ) {
   m_logger << INFO << "MeasurementType udsg: " << m_measurementType_udsg << SLogger::endmsg;
   m_logger << INFO << "MeasurementType bc: " << m_measurementType_bc << SLogger::endmsg;
   m_logger << INFO << "EffHistDirectory: " << m_effHistDirectory << SLogger::endmsg;
+  m_logger << INFO << "Efficiency file: " << m_effFile << SLogger::endmsg;
   
   BTagEntry::OperatingPoint wp = BTagEntry::OP_LOOSE;
   if (m_workingPoint == "Loose") {
@@ -254,11 +256,11 @@ void BTaggingScaleTool::bookHistograms() {
   std::vector<TString> jetCategories = {"jet", "subjet_pruned"};
   
   for (std::vector<TString>::const_iterator jetCat = jetCategories.begin(); jetCat != jetCategories.end(); ++jetCat) {
-    Book( TH2F( *jetCat + "_udsg_isTagged", *jetCat + "_udsg_isTagged", nPtBins, ptBins, nEtaBins, etaBins ), m_effHistDirectory.c_str() );
+    Book( TH2F( *jetCat + "_udsg_" + m_workingPoint, *jetCat + "_udsg_" + m_workingPoint, nPtBins, ptBins, nEtaBins, etaBins ), m_effHistDirectory.c_str() );
     Book( TH2F( *jetCat + "_udsg_all", *jetCat + "_udsg_all", nPtBins, ptBins, nEtaBins, etaBins ), m_effHistDirectory.c_str() );
-    Book( TH2F( *jetCat + "_c_isTagged", *jetCat + "_c_isTagged", nPtBins, ptBins, nEtaBins, etaBins ), m_effHistDirectory.c_str() );
+    Book( TH2F( *jetCat + "_c_" + m_workingPoint, *jetCat + "_c_" + m_workingPoint, nPtBins, ptBins, nEtaBins, etaBins ), m_effHistDirectory.c_str() );
     Book( TH2F( *jetCat + "_c_all", *jetCat + "_c_all", nPtBins, ptBins, nEtaBins, etaBins ), m_effHistDirectory.c_str() );
-    Book( TH2F( *jetCat + "_b_isTagged", *jetCat + "_b_isTagged", nPtBins, ptBins, nEtaBins, etaBins ), m_effHistDirectory.c_str() );
+    Book( TH2F( *jetCat + "_b_" + m_workingPoint, *jetCat + "_b_" + m_workingPoint, nPtBins, ptBins, nEtaBins, etaBins ), m_effHistDirectory.c_str() );
     Book( TH2F( *jetCat + "_b_all", *jetCat + "_b_all", nPtBins, ptBins, nEtaBins, etaBins ), m_effHistDirectory.c_str() );
   }
   
@@ -274,7 +276,7 @@ void BTaggingScaleTool::fillEfficiencies( const UZH::JetVec& vJets ) {
 	     << SLogger::endmsg;
     TString flavourString = flavourToString(itJet->hadronFlavour());
     if (isTagged(*itJet)) {
-      Hist( "jet_" + flavourString + "_isTagged", m_effHistDirectory.c_str() )->Fill( itJet->pt(), itJet->eta() );
+      Hist( "jet_" + flavourString + "_" + m_workingPoint, m_effHistDirectory.c_str() )->Fill( itJet->pt(), itJet->eta() );
     }
     Hist( "jet_" + flavourString + "_all", m_effHistDirectory.c_str() )->Fill( itJet->pt(), itJet->eta() );
   }
@@ -294,7 +296,7 @@ void BTaggingScaleTool::fillPrunedSubjetEfficiencies( const UZH::JetVec& vJets )
   	     << SLogger::endmsg;
       TString flavourString = flavourToString(itJet->subjet_pruned_hadronFlavour()[i]);
       if (isTagged(itJet->subjet_pruned_csv()[i])) {
-        Hist( "subjet_pruned_" + flavourString + "_isTagged", m_effHistDirectory.c_str() )->Fill( itJet->subjet_pruned_pt()[i], itJet->subjet_pruned_eta()[i] );
+        Hist( "subjet_pruned_" + flavourString + "_" + m_workingPoint, m_effHistDirectory.c_str() )->Fill( itJet->subjet_pruned_pt()[i], itJet->subjet_pruned_eta()[i] );
       }
       Hist( "subjet_pruned_" + flavourString + "_all", m_effHistDirectory.c_str() )->Fill( itJet->subjet_pruned_pt()[i], itJet->subjet_pruned_eta()[i] );
     }

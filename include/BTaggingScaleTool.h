@@ -64,6 +64,7 @@ class BTaggingScaleTool : public SToolBase {
   std::string m_measurementType_udsg;
   std::string m_measurementType_bc;
   std::string m_effHistDirectory;
+  std::string m_effFile;
   
   std::map<std::string, double> wpCuts; // could have a function to set these
   double currentWorkingPointCut;
