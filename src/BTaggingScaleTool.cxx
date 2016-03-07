@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <limits>
 
-#include <TH2.h>
+#include <TFile.h>
 
 //
 // constructor
@@ -21,11 +21,14 @@ BTaggingScaleTool::BTaggingScaleTool( SCycleBase* parent,
   // m_reader_up = 0;
   // m_reader_down = 0;
   
+  // if needed, probably best to append WP names a la Loose74X
+  // see also use in BeginInputData
   wpCuts.clear();
   wpCuts["Loose"] = 0.605;
   wpCuts["Medium"] = 0.89;
   wpCuts["Tight"] = 0.97;
   currentWorkingPointCut = -1;
+  m_effMaps.clear();
 
   DeclareProperty( m_name + "_Tagger",    m_tagger = "CSVv2" );
   DeclareProperty( m_name + "_WorkingPoint", m_workingPoint = "Loose" );
@@ -59,21 +62,22 @@ void BTaggingScaleTool::BeginInputData( const SInputData& ) throw( SError ) {
   m_logger << INFO << "Efficiency file: " << m_effFile << SLogger::endmsg;
   
   BTagEntry::OperatingPoint wp = BTagEntry::OP_LOOSE;
-  if (m_workingPoint == "Loose") {
+  if (m_workingPoint.find("Loose") >= 0) {
     wp = BTagEntry::OP_LOOSE;
     currentWorkingPointCut = wpCuts["Loose"];
   }
-  else if (m_workingPoint == "Medium") {
+  else if (m_workingPoint.find("Medium") >= 0) {
     wp = BTagEntry::OP_MEDIUM;
     currentWorkingPointCut = wpCuts["Medium"];
   }
-  else if (m_workingPoint == "Tight") {
+  else if (m_workingPoint.find("Tight") >= 0) {
     wp = BTagEntry::OP_TIGHT;
     currentWorkingPointCut = wpCuts["Tight"];
   }
-  else if (m_workingPoint == "Reshaping") {
+  else if (m_workingPoint.find("Reshaping") >= 0) {
     wp = BTagEntry::OP_RESHAPING;
     currentWorkingPointCut = wpCuts["Loose"]; //placeholder
+    m_logger << WARNING << "Reshaping not yet implemented!" << SLogger::endmsg;
   }
   else {
     throw SError( ("Unknown working point: " + m_workingPoint).c_str(), SError::SkipCycle );
@@ -95,13 +99,19 @@ void BTaggingScaleTool::BeginInputData( const SInputData& ) throw( SError ) {
   m_reader_down->load(m_calib, BTagEntry::FLAV_C, m_measurementType_bc);
   m_reader_down->load(m_calib, BTagEntry::FLAV_UDSG, m_measurementType_udsg);
   
+  // jet categories for efficiencies
+  m_jetCategories = {"jet", "subjet_pruned"};
+  m_flavours = {"b", "c", "udsg"};
+  
+  // read in efficiencies
+  readEfficiencies();
 
   return;
 
 }
 
 
-double BTaggingScaleTool::getScaleFactor( const double& pt, const double& eta, const int& flavour, bool isTagged, const double& sigma ) {
+double BTaggingScaleTool::getScaleFactor( const double& pt, const double& eta, const int& flavour, bool isTagged, const double& sigma_bc, const double& sigma_udsg, const TString& jetCategory ) {
 
   // Flavor
   BTagEntry::JetFlavor flavorEnum = BTagEntry::FLAV_UDSG;
@@ -128,26 +138,43 @@ double BTaggingScaleTool::getScaleFactor( const double& pt, const double& eta, c
     is_out_of_bounds = true;
   }
   
-  double sigmaScale = sigma;
+  double sigmaScale_bc = sigma_bc;
+  double sigmaScale_udsg = sigma_udsg;
   // double uncertainty in case jet outside normal kinematics
   if (is_out_of_bounds) {
     m_logger << DEBUG << sf_bounds.first << " - " << sf_bounds.second << SLogger::endmsg;
     m_logger << DEBUG << "out of bounds, using: " << pt_for_eval << " and " << abs_eta << SLogger::endmsg;
-    sigmaScale *= 2;
+    sigmaScale_bc *= 2;
+    sigmaScale_udsg *= 2;
   }
   
   m_logger << DEBUG << "getting scale factor " << SLogger::endmsg;
   double scalefactor = m_reader->eval(flavorEnum, eta, pt_for_eval);
   m_logger << DEBUG << "scale factor: " << scalefactor << SLogger::endmsg;
-  if ((sigma > std::numeric_limits<double>::epsilon()) || (sigma < -std::numeric_limits<double>::epsilon())) {
-    // m_logger << DEBUG << "limit: " << std::numeric_limits<double>::epsilon() << " value: " << sigma << SLogger::endmsg;
-    if (sigma > 0) {
-      double scalefactor_up =  m_reader_up->eval(flavorEnum, eta, pt_for_eval);
-      scalefactor = sigmaScale*(scalefactor_up - scalefactor) + scalefactor;
+  if ((flavour == 5) || (flavour == 4)) {
+    if ((sigma_bc > std::numeric_limits<double>::epsilon()) || (sigma_bc < -std::numeric_limits<double>::epsilon())) {
+      // m_logger << DEBUG << "limit: " << std::numeric_limits<double>::epsilon() << " value: " << sigma << SLogger::endmsg;
+      if (sigma_bc > 0) {
+        double scalefactor_up =  m_reader_up->eval(flavorEnum, eta, pt_for_eval);
+        scalefactor = sigmaScale_bc*(scalefactor_up - scalefactor) + scalefactor;
+      }
+      else {
+        double scalefactor_down =  m_reader_down->eval(flavorEnum, eta, pt_for_eval);
+        scalefactor = fabs(sigmaScale_bc)*(scalefactor_down - scalefactor) + scalefactor;
+      }
     }
-    else {
-      double scalefactor_down =  m_reader_down->eval(flavorEnum, eta, pt_for_eval);
-      scalefactor = fabs(sigmaScale)*(scalefactor_down - scalefactor) + scalefactor;
+  }
+  else {
+    if ((sigma_udsg > std::numeric_limits<double>::epsilon()) || (sigma_udsg < -std::numeric_limits<double>::epsilon())) {
+      // m_logger << DEBUG << "limit: " << std::numeric_limits<double>::epsilon() << " value: " << sigma << SLogger::endmsg;
+      if (sigma_udsg > 0) {
+        double scalefactor_up =  m_reader_up->eval(flavorEnum, eta, pt_for_eval);
+        scalefactor = sigmaScale_udsg*(scalefactor_up - scalefactor) + scalefactor;
+      }
+      else {
+        double scalefactor_down =  m_reader_down->eval(flavorEnum, eta, pt_for_eval);
+        scalefactor = fabs(sigmaScale_udsg)*(scalefactor_down - scalefactor) + scalefactor;
+      }
     }
   }
   if (scalefactor == 0) {
@@ -175,16 +202,16 @@ double BTaggingScaleTool::getScaleFactor( const double& pt, const double& eta, c
 }
 
 
-double BTaggingScaleTool::getScaleFactor( const UZH::Jet& jet, const double& sigma ) {
+double BTaggingScaleTool::getScaleFactor( const UZH::Jet& jet, const double& sigma_bc, const double& sigma_udsg, const TString& jetCategory ) {
 
-  double jetweight = getScaleFactor(jet.pt(), jet.eta(), jet.hadronFlavour(), isTagged(jet), sigma);
+  double jetweight = getScaleFactor(jet.pt(), jet.eta(), jet.hadronFlavour(), isTagged(jet), sigma_bc, sigma_udsg, jetCategory);
 
   return jetweight;
   
 }
 
 
-double BTaggingScaleTool::getPrunedSubjetScaleFactor( const UZH::Jet& jet, const double& sigma ) {
+double BTaggingScaleTool::getPrunedSubjetScaleFactor( const UZH::Jet& jet, const double& sigma_bc, const double& sigma_udsg, const TString& jetCategory ) {
 
   double jetweight = 1;
   
@@ -192,7 +219,7 @@ double BTaggingScaleTool::getPrunedSubjetScaleFactor( const UZH::Jet& jet, const
     m_logger << DEBUG << "Looking at pruned subjet " << i
 	     << ", pT=" << jet.subjet_pruned_pt()[i] << ", eta=" << jet.subjet_pruned_eta()[i]
 	     << SLogger::endmsg;
-    jetweight *= getScaleFactor(jet.subjet_pruned_pt()[i], jet.subjet_pruned_eta()[i], jet.subjet_pruned_hadronFlavour()[i], isTagged(jet.subjet_pruned_csv()[i]), sigma);
+    jetweight *= getScaleFactor(jet.subjet_pruned_pt()[i], jet.subjet_pruned_eta()[i], jet.subjet_pruned_hadronFlavour()[i], isTagged(jet.subjet_pruned_csv()[i]), sigma_bc, sigma_udsg, jetCategory);
   }
 
   return jetweight;
@@ -203,7 +230,7 @@ double BTaggingScaleTool::getPrunedSubjetScaleFactor( const UZH::Jet& jet, const
 //
 // return scale for Jet collection
 //
-double BTaggingScaleTool::getScaleFactor( const UZH::JetVec& vJets, const double& sigma ) {
+double BTaggingScaleTool::getScaleFactor( const UZH::JetVec& vJets, const double& sigma_bc, const double& sigma_udsg, const TString& jetCategory) {
 
   double scale = 1.;
   
@@ -214,7 +241,7 @@ double BTaggingScaleTool::getScaleFactor( const UZH::JetVec& vJets, const double
 	     << ", pT=" << (*itJet).pt() << ", eta=" << (*itJet).eta()
 	     << SLogger::endmsg;
 
-    scale *= getScaleFactor(*itJet, sigma);
+    scale *= getScaleFactor(*itJet, sigma_bc, sigma_udsg, jetCategory);
   }  
 
   m_logger << DEBUG << "BTaggingScaleTool::getScaleFactor done" << SLogger::endmsg;
@@ -226,7 +253,7 @@ double BTaggingScaleTool::getScaleFactor( const UZH::JetVec& vJets, const double
 //
 // return scale for Jet collection
 //
-double BTaggingScaleTool::getPrunedSubjetScaleFactor( const UZH::JetVec& vJets, const double& sigma ) {
+double BTaggingScaleTool::getPrunedSubjetScaleFactor( const UZH::JetVec& vJets, const double& sigma_bc, const double& sigma_udsg, const TString& jetCategory ) {
 
   double scale = 1.;
   
@@ -237,7 +264,7 @@ double BTaggingScaleTool::getPrunedSubjetScaleFactor( const UZH::JetVec& vJets, 
 	     << ", pT=" << (*itJet).pt() << ", eta=" << (*itJet).eta()
 	     << SLogger::endmsg;
 
-    scale *= getPrunedSubjetScaleFactor(*itJet, sigma);
+    scale *= getPrunedSubjetScaleFactor(*itJet, sigma_bc, sigma_udsg, jetCategory);
   }  
 
   m_logger << DEBUG << "BTaggingScaleTool::getPrunedSubjetScaleFactor done" << SLogger::endmsg;
@@ -253,15 +280,12 @@ void BTaggingScaleTool::bookHistograms() {
   const int nEtaBins = 4;
   float ptBins[nPtBins+1] = {10, 20, 30, 50, 70, 100, 140, 200, 300, 670, 1000, 1500};
   float etaBins[nEtaBins+1] = {-2.5, -1.5, 0, 1.5, 2.5};
-  std::vector<TString> jetCategories = {"jet", "subjet_pruned"};
   
-  for (std::vector<TString>::const_iterator jetCat = jetCategories.begin(); jetCat != jetCategories.end(); ++jetCat) {
-    Book( TH2F( *jetCat + "_udsg_" + m_workingPoint, *jetCat + "_udsg_" + m_workingPoint, nPtBins, ptBins, nEtaBins, etaBins ), m_effHistDirectory.c_str() );
-    Book( TH2F( *jetCat + "_udsg_all", *jetCat + "_udsg_all", nPtBins, ptBins, nEtaBins, etaBins ), m_effHistDirectory.c_str() );
-    Book( TH2F( *jetCat + "_c_" + m_workingPoint, *jetCat + "_c_" + m_workingPoint, nPtBins, ptBins, nEtaBins, etaBins ), m_effHistDirectory.c_str() );
-    Book( TH2F( *jetCat + "_c_all", *jetCat + "_c_all", nPtBins, ptBins, nEtaBins, etaBins ), m_effHistDirectory.c_str() );
-    Book( TH2F( *jetCat + "_b_" + m_workingPoint, *jetCat + "_b_" + m_workingPoint, nPtBins, ptBins, nEtaBins, etaBins ), m_effHistDirectory.c_str() );
-    Book( TH2F( *jetCat + "_b_all", *jetCat + "_b_all", nPtBins, ptBins, nEtaBins, etaBins ), m_effHistDirectory.c_str() );
+  for (std::vector<TString>::const_iterator jetCat = m_jetCategories.begin(); jetCat != m_jetCategories.end(); ++jetCat) {
+    for (std::vector<TString>::const_iterator flav = m_flavours.begin(); flav != m_flavours.end(); ++flav) {
+      Book( TH2F( *jetCat + "_" + *flav + "_" + m_workingPoint, *jetCat + "_" + *flav + "_" + m_workingPoint, nPtBins, ptBins, nEtaBins, etaBins ), m_effHistDirectory.c_str() );
+      Book( TH2F( *jetCat + "_" + *flav + "_all", *jetCat + "_" + *flav + "_all", nPtBins, ptBins, nEtaBins, etaBins ), m_effHistDirectory.c_str() );
+    }
   }
   
 }
@@ -303,6 +327,43 @@ void BTaggingScaleTool::fillPrunedSubjetEfficiencies( const UZH::JetVec& vJets )
   }
   
 }
+
+
+/// function to read efficiencies
+void BTaggingScaleTool::readEfficiencies() {
+  
+  m_logger << INFO << "Reading in b-tagging efficiencies from file " << m_effFile << SLogger::endmsg;
+  TFile* inFile = TFile::Open(m_effFile.c_str());
+  
+  for (std::vector<TString>::iterator jetCat = m_jetCategories.begin(); jetCat != m_jetCategories.end(); ++jetCat) {
+    for (std::vector<TString>::const_iterator flav = m_flavours.begin(); flav != m_flavours.end(); ++flav) {
+      TH2F* hPass = (TH2F*) inFile->Get( m_effHistDirectory + "/" + *jetCat + "_" + *flav + "_" + m_workingPoint);
+      TH2F* hAll = (TH2F*) inFile->Get( m_effHistDirectory + "/" + *jetCat + "_" + *flav + "_all");
+      TH2F* hEff = (TH2F*) hPass->Clone( m_effHistDirectory + "_" + *jetCat + "_" + *flav + "_" + m_workingPoint );
+      hEff->Divide(hAll);
+      delete hPass;
+      delete hAll;
+      m_effMaps[(*jetCat + "_" + *flav + "_" + m_workingPoint).Data()] = hEff;
+    }
+  }
+  inFile->Close();
+  delete inFile;
+  
+}
+
+double BTaggingScaleTool::getEfficiency( const double& pt, const double& eta, const int& flavour, const TString& jetCategory ) {
+  
+  double eff = 1.;
+  TH2F* thisHist = m_effMaps[(jetCategory + "_" + flavourToString(flavour) + "_" + m_workingPoint).Data()];
+  int binx = thisHist->GetXaxis()->FindBin(pt);
+  int biny = thisHist->GetYaxis()->FindBin(eta);
+  // implement check for overflow
+  eff = thisHist->GetBinContent(binx, biny);
+  m_logger << DEBUG << "For "<< jetCategory << " with pt = " << pt << ", eta = " << eta << ", flavour = " << flavour << " returning efficiency =" << eff << SLogger::endmsg;
+  return eff;
+  
+}
+
 
 
 TString BTaggingScaleTool::flavourToString( const int& flavour ) {
