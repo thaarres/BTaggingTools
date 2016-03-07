@@ -36,7 +36,7 @@ BTaggingScaleTool::BTaggingScaleTool( SCycleBase* parent,
   DeclareProperty( m_name + "_MeasurementType_udsg", m_measurementType_udsg = "comb" );
   DeclareProperty( m_name + "_MeasurementType_bc", m_measurementType_bc = "mujets" );
   DeclareProperty( m_name + "_EffHistDirectory", m_effHistDirectory = "bTagEff" );
-  DeclareProperty( m_name + "_EffFile", m_effFile = sframe_dir + "/../BTaggingTools/efficiencies/bTagEff.root" );
+  DeclareProperty( m_name + "_EffFile", m_effFile = sframe_dir + "/../BTaggingTools/efficiencies/bTagEffs.root" );
 
 }
 
@@ -185,7 +185,7 @@ double BTaggingScaleTool::getScaleFactor( const double& pt, const double& eta, c
   
   double jetweight = 1.;
   // set effMC close to one for now, need to use real value map later
-  double effMC = .95;
+  double effMC = getEfficiency(pt, eta, flavour, jetCategory);
   
   if (isTagged) {
     m_logger << DEBUG << "     Jet is tagged " << SLogger::endmsg;
@@ -333,32 +333,36 @@ void BTaggingScaleTool::fillPrunedSubjetEfficiencies( const UZH::JetVec& vJets )
 void BTaggingScaleTool::readEfficiencies() {
   
   m_logger << INFO << "Reading in b-tagging efficiencies from file " << m_effFile << SLogger::endmsg;
-  TFile* inFile = TFile::Open(m_effFile.c_str());
+  auto inFile = TFile::Open(m_effFile.c_str());
   
   for (std::vector<TString>::iterator jetCat = m_jetCategories.begin(); jetCat != m_jetCategories.end(); ++jetCat) {
     for (std::vector<TString>::const_iterator flav = m_flavours.begin(); flav != m_flavours.end(); ++flav) {
-      TH2F* hPass = (TH2F*) inFile->Get( m_effHistDirectory + "/" + *jetCat + "_" + *flav + "_" + m_workingPoint);
-      TH2F* hAll = (TH2F*) inFile->Get( m_effHistDirectory + "/" + *jetCat + "_" + *flav + "_all");
-      TH2F* hEff = (TH2F*) hPass->Clone( m_effHistDirectory + "_" + *jetCat + "_" + *flav + "_" + m_workingPoint );
-      hEff->Divide(hAll);
-      delete hPass;
-      delete hAll;
+      auto hPass = (TH2F*) inFile->Get( m_effHistDirectory + "/" + *jetCat + "_" + *flav + "_" + m_workingPoint);
+      auto hAll = (TH2F*) inFile->Get( m_effHistDirectory + "/" + *jetCat + "_" + *flav + "_all");
+      TH2F hEff = *((TH2F*) hPass->Clone( m_effHistDirectory + "_" + *jetCat + "_" + *flav + "_" + m_workingPoint ));
+      hEff.Divide(hAll);
+      // delete hPass;
+      // delete hAll;
       m_effMaps[(*jetCat + "_" + *flav + "_" + m_workingPoint).Data()] = hEff;
+      m_logger << DEBUG << "effi TH2D binsx: " << hEff.GetNbinsX() << " binsy: " << hEff.GetNbinsY() << SLogger::endmsg;
     }
   }
   inFile->Close();
-  delete inFile;
+  // delete inFile;
   
 }
 
 double BTaggingScaleTool::getEfficiency( const double& pt, const double& eta, const int& flavour, const TString& jetCategory ) {
   
   double eff = 1.;
-  TH2F* thisHist = m_effMaps[(jetCategory + "_" + flavourToString(flavour) + "_" + m_workingPoint).Data()];
-  int binx = thisHist->GetXaxis()->FindBin(pt);
-  int biny = thisHist->GetYaxis()->FindBin(eta);
+  TH2F thisHist = m_effMaps[(jetCategory + "_" + flavourToString(flavour) + "_" + m_workingPoint).Data()];
+  m_logger << DEBUG << /*thisHist << " " << */ thisHist.GetName() << SLogger::endmsg;
+  int binx = thisHist.GetXaxis()->FindBin(pt);
+  int biny = thisHist.GetYaxis()->FindBin(eta);
+  m_logger << DEBUG << "binx = " << binx << " biny = " << biny << SLogger::endmsg;
+  m_logger << DEBUG << "maxx = " << thisHist.GetNbinsX() << " maxy = " << thisHist.GetNbinsY() << SLogger::endmsg;
   // implement check for overflow
-  eff = thisHist->GetBinContent(binx, biny);
+  eff = thisHist.GetBinContent(binx, biny);
   m_logger << DEBUG << "For "<< jetCategory << " with pt = " << pt << ", eta = " << eta << ", flavour = " << flavour << " returning efficiency =" << eff << SLogger::endmsg;
   return eff;
   

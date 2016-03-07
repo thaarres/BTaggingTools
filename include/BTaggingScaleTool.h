@@ -78,7 +78,7 @@ class BTaggingScaleTool : public SToolBase {
   
   std::map<std::string, double> wpCuts; // could have a function to set these
   double currentWorkingPointCut;
-  std::map< std::string, TH2F* > m_effMaps;
+  std::map< std::string, TH2F > m_effMaps;
 
   std::unique_ptr<BTagCalibrationReader> m_reader;
   std::unique_ptr<BTagCalibrationReader> m_reader_up;
