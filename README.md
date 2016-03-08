@@ -17,7 +17,8 @@ Tools for b-tagging scale factors and efficiencies
 
 ### header file
 
-```#include "../BTaggingTools/include/BTaggingScaleTool.h"
+```
+#include "../BTaggingTools/include/BTaggingScaleTool.h"
 [..]
 
 private:
@@ -29,6 +30,7 @@ private:
 ### implementation
 
 constructor:
+
 ```
 VHAnalysis::VHAnalysis()
  : SCycleBase()
@@ -38,6 +40,7 @@ VHAnalysis::VHAnalysis()
 ```
 
 In `BeginInputData( const SInputData& id )`:
+
 ```
 // b-tagging tool initialisation
 m_bTaggingScaleTool.BeginInputData( id );
@@ -50,6 +53,7 @@ if (m_isSignal) {
 ```
 
 In `ExecuteEvent()`, after you've performed some kind of signal selection:
+
 ```
 if (m_isSignal) {
   std::vector<UZH::Jet> selectedJets;
@@ -61,6 +65,7 @@ if (m_isSignal) {
 ```
 
 Furthermore, it is recommended to use the working points defined in the BTaggingScaleTool to identify if a jet is b-tagged, e.g.:
+
 ```
 if (m_bTaggingScaleTool.isTagged(higgsJet.subjet_pruned_csv()[i])) {
   ++nTaggedSubjets;
@@ -68,6 +73,7 @@ if (m_bTaggingScaleTool.isTagged(higgsJet.subjet_pruned_csv()[i])) {
 ```
 
 To get the scale factor, pass either a vector of `UZH::Jet` or individual `UZH::Jet`, mind the different functions for subjet and normal jet b-tagging:
+
 ```
 if (!m_isData) {
   b_weight = getEventWeight(); // could be pileup weights etc.
