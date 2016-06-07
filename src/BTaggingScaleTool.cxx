@@ -31,12 +31,19 @@ BTaggingScaleTool::BTaggingScaleTool( SCycleBase* parent,
   m_effMaps.clear();
 
   DeclareProperty( m_name + "_Tagger",    m_tagger = "CSVv2" );
+  DeclareProperty( m_name + "_Tagger_veto",    m_tagger_veto = "CSVv2" );
+ 
   DeclareProperty( m_name + "_WorkingPoint", m_workingPoint = "Loose" );
+  DeclareProperty( m_name + "_WorkingPoint_veto", m_workingPoint_veto = "Medium" );
+
   DeclareProperty( m_name + "_CsvFile", m_csvFile = sframe_dir + "/../BTaggingTools/csv/CSVv2.csv" );
+  DeclareProperty( m_name + "_CsvFile_veto", m_csvFile_veto = sframe_dir + "/../BTaggingTools/csv/CSVv2.csv" );
+
   DeclareProperty( m_name + "_MeasurementType_udsg", m_measurementType_udsg = "comb" );
   DeclareProperty( m_name + "_MeasurementType_bc", m_measurementType_bc = "mujets" );
   DeclareProperty( m_name + "_EffHistDirectory", m_effHistDirectory = "bTagEff" );
   DeclareProperty( m_name + "_EffFile", m_effFile = sframe_dir + "/../BTaggingTools/efficiencies/bTagEffs.root" );
+  DeclareProperty( m_name + "_EffFile_veto", m_effFile_veto = sframe_dir + "/../BTaggingTools/efficiencies/bTagEffs.root" );
 
 }
 
@@ -54,8 +61,13 @@ void BTaggingScaleTool::BeginInputData( const SInputData& ) throw( SError ) {
 
   m_logger << INFO << "Initializing BTagCalibrationStandalone" << SLogger::endmsg;
   m_logger << INFO << "CSV file:    " << m_csvFile << SLogger::endmsg;
+  m_logger << INFO << "CSV file for veto:    " << m_csvFile_veto << SLogger::endmsg;
+
   m_logger << INFO << "Tagger:         " << m_tagger << SLogger::endmsg;
+  m_logger << INFO << "Tagger for veto:         " << m_tagger_veto << SLogger::endmsg;
   m_logger << INFO << "WorkingPoint: " << m_workingPoint << SLogger::endmsg;
+  m_logger << INFO << "WorkingPoint for veto ak4: " << m_workingPoint_veto << SLogger::endmsg;
+
   m_logger << INFO << "MeasurementType udsg: " << m_measurementType_udsg << SLogger::endmsg;
   m_logger << INFO << "MeasurementType bc: " << m_measurementType_bc << SLogger::endmsg;
   m_logger << INFO << "EffHistDirectory: " << m_effHistDirectory << SLogger::endmsg;
@@ -83,6 +95,28 @@ void BTaggingScaleTool::BeginInputData( const SInputData& ) throw( SError ) {
     throw SError( ("Unknown working point: " + m_workingPoint).c_str(), SError::SkipCycle );
   }
 
+  BTagEntry::OperatingPoint wp_veto = BTagEntry::OP_LOOSE;
+  if (m_workingPoint_veto.find("Loose") >= 0) {
+    wp_veto = BTagEntry::OP_LOOSE;
+    currentWorkingPointCut_veto = wpCuts["Loose"];
+  }
+  else if (m_workingPoint_veto.find("Medium") >= 0) {
+    wp_veto = BTagEntry::OP_MEDIUM;
+    currentWorkingPointCut_veto = wpCuts["Medium"];
+  }
+  else if (m_workingPoint_veto.find("Tight") >= 0) {
+    wp_veto = BTagEntry::OP_TIGHT;
+    currentWorkingPointCut_veto = wpCuts["Tight"];
+  }
+  else if (m_workingPoint.find("Reshaping") >= 0) {
+    wp_veto = BTagEntry::OP_RESHAPING;
+    currentWorkingPointCut_veto = wpCuts["Loose"]; //placeholder
+    m_logger << WARNING << "Reshaping not yet implemented!" << SLogger::endmsg;
+  }
+  else {
+    throw SError( ("Unknown working point: " + m_workingPoint_veto).c_str(), SError::SkipCycle );
+  }
+
   BTagCalibration m_calib(m_tagger, m_csvFile);
 
   m_reader.reset(new BTagCalibrationReader(wp, "central"));
@@ -98,9 +132,30 @@ void BTaggingScaleTool::BeginInputData( const SInputData& ) throw( SError ) {
   m_reader_down->load(m_calib, BTagEntry::FLAV_B, m_measurementType_bc);
   m_reader_down->load(m_calib, BTagEntry::FLAV_C, m_measurementType_bc);
   m_reader_down->load(m_calib, BTagEntry::FLAV_UDSG, m_measurementType_udsg);
+
+
+
+  BTagCalibration m_calib_veto(m_tagger_veto, m_csvFile_veto );
+
+  m_reader_veto.reset(new BTagCalibrationReader(wp_veto, "central"));
+  m_reader_veto_up.reset(new BTagCalibrationReader(wp_veto, "up"));
+  m_reader_veto_down.reset(new BTagCalibrationReader(wp_veto, "down"));
+  
+  m_reader_veto->load(m_calib_veto, BTagEntry::FLAV_B, m_measurementType_bc);
+  m_reader_veto->load(m_calib_veto, BTagEntry::FLAV_C, m_measurementType_bc);
+  m_reader_veto->load(m_calib_veto, BTagEntry::FLAV_UDSG, m_measurementType_udsg);
+  m_reader_veto_up->load(m_calib_veto, BTagEntry::FLAV_B, m_measurementType_bc);
+  m_reader_veto_up->load(m_calib_veto, BTagEntry::FLAV_C, m_measurementType_bc);
+  m_reader_veto_up->load(m_calib_veto, BTagEntry::FLAV_UDSG, m_measurementType_udsg);
+  m_reader_veto_down->load(m_calib_veto, BTagEntry::FLAV_B, m_measurementType_bc);
+  m_reader_veto_down->load(m_calib_veto, BTagEntry::FLAV_C, m_measurementType_bc);
+  m_reader_veto_down->load(m_calib_veto, BTagEntry::FLAV_UDSG, m_measurementType_udsg);
+
+
   
   // jet categories for efficiencies
   m_jetCategories = {"jet", "subjet_pruned"};
+  m_jetCategories_veto = {"jet_ak4"};
   m_flavours = {"b", "c", "udsg"};
   
   // read in efficiencies
@@ -126,18 +181,18 @@ double BTaggingScaleTool::getScaleFactor( const double& pt, const double& eta, c
   // range checking, double uncertainty if beyond
   std::pair<float, float> sf_bounds = m_reader->min_max_pt(flavorEnum, abs_eta);
   
-  m_logger << DEBUG << "     flavor " << flavorEnum << " - " << sf_bounds.first << " " << sf_bounds.second << SLogger::endmsg;
+  m_logger << DEBUG << "     flavor " << flavorEnum << " - " << sf_bounds.first << " " << sf_bounds.second <<" jet pt "<< pt<<  SLogger::endmsg;
 
   float pt_for_eval = pt;
   bool is_out_of_bounds = false;
   if (pt < sf_bounds.first) {
     pt_for_eval = sf_bounds.first + 1e-5;
     is_out_of_bounds = true;
-  } else if (pt > sf_bounds.second) {
+  } else if (pt >= sf_bounds.second) {
     pt_for_eval = sf_bounds.second - 0.1;
     is_out_of_bounds = true;
   }
-  
+  m_logger << DEBUG << "*******  out of band ? " << is_out_of_bounds << "so pt_for_eval_used " <<  pt_for_eval << SLogger::endmsg;
   double sigmaScale_bc = sigma_bc;
   double sigmaScale_udsg = sigma_udsg;
   // double uncertainty in case jet outside normal kinematics
@@ -202,6 +257,99 @@ double BTaggingScaleTool::getScaleFactor( const double& pt, const double& eta, c
 }
 
 
+double BTaggingScaleTool::getScaleFactor_veto( const double& pt, const double& eta, const int& flavour, bool isTagged, const double& sigma_bc, const double& sigma_udsg, const TString& jetCategory ) {
+
+  // Flavor
+  BTagEntry::JetFlavor flavorEnum = BTagEntry::FLAV_UDSG;
+
+  double MaxEta = 2.4;
+  double abs_eta = fabs(eta);
+  if (abs_eta > MaxEta) {
+    // outside tracker range
+    return 1.;
+  }
+  
+  // range checking, double uncertainty if beyond
+  std::pair<float, float> sf_bounds = m_reader_veto->min_max_pt(flavorEnum, abs_eta);
+  
+  m_logger << DEBUG << "     flavor " << flavorEnum << " - " << sf_bounds.first << " " << sf_bounds.second <<" jet pt "<< pt<<  SLogger::endmsg;
+
+  float pt_for_eval = pt;
+  bool is_out_of_bounds = false;
+  if (pt < sf_bounds.first) {
+    pt_for_eval = sf_bounds.first + 1e-5;
+    is_out_of_bounds = true;
+  } else if (pt >= sf_bounds.second) {
+    pt_for_eval = sf_bounds.second - 0.1;
+    is_out_of_bounds = true;
+  }
+  m_logger << DEBUG << "*******  out of band ? " << is_out_of_bounds << "so pt_for_eval_used " <<  pt_for_eval << SLogger::endmsg;
+  double sigmaScale_bc = sigma_bc;
+  double sigmaScale_udsg = sigma_udsg;
+  // double uncertainty in case jet outside normal kinematics
+  if (is_out_of_bounds) {
+    m_logger << DEBUG << sf_bounds.first << " - " << sf_bounds.second << SLogger::endmsg;
+    m_logger << DEBUG << "out of bounds, using: " << pt_for_eval << " and " << abs_eta << SLogger::endmsg;
+    sigmaScale_bc *= 2;
+    sigmaScale_udsg *= 2;
+  }
+  
+  m_logger << DEBUG << "getting scale factor " << SLogger::endmsg;
+  double scalefactor = m_reader_veto->eval(flavorEnum, eta, pt_for_eval);
+  m_logger << DEBUG << "scale factor: " << scalefactor << SLogger::endmsg;
+  if ((flavour == 5) || (flavour == 4)) {
+    if ((sigma_bc > std::numeric_limits<double>::epsilon()) || (sigma_bc < -std::numeric_limits<double>::epsilon())) {
+      // m_logger << DEBUG << "limit: " << std::numeric_limits<double>::epsilon() << " value: " << sigma << SLogger::endmsg;
+      if (sigma_bc > 0) {
+        double scalefactor_up =  m_reader_veto_up->eval(flavorEnum, eta, pt_for_eval);
+        scalefactor = sigmaScale_bc*(scalefactor_up - scalefactor) + scalefactor;
+      }
+      else {
+        double scalefactor_down =  m_reader_veto_down->eval(flavorEnum, eta, pt_for_eval);
+        scalefactor = fabs(sigmaScale_bc)*(scalefactor_down - scalefactor) + scalefactor;
+      }
+    }
+  }
+  else {
+    if ((sigma_udsg > std::numeric_limits<double>::epsilon()) || (sigma_udsg < -std::numeric_limits<double>::epsilon())) {
+      // m_logger << DEBUG << "limit: " << std::numeric_limits<double>::epsilon() << " value: " << sigma << SLogger::endmsg;
+      if (sigma_udsg > 0) {
+        double scalefactor_up =  m_reader_veto_up->eval(flavorEnum, eta, pt_for_eval);
+        scalefactor = sigmaScale_udsg*(scalefactor_up - scalefactor) + scalefactor;
+      }
+      else {
+        double scalefactor_down =  m_reader_veto_down->eval(flavorEnum, eta, pt_for_eval);
+        scalefactor = fabs(sigmaScale_udsg)*(scalefactor_down - scalefactor) + scalefactor;
+      }
+    }
+  }
+  if (scalefactor == 0) {
+    throw SError( "Scale factor returned is zero!", SError::SkipCycle );
+  }
+  
+  m_logger << DEBUG << "getting final weight " << flavorEnum << SLogger::endmsg;
+  
+  double jetweight = 1.;
+  // set effMC close to one for now, need to use real value map later
+  double effMC = getEfficiency(pt, eta, flavour, "jet_ak4");/// maybe change "jet_ak4_
+  
+  if (isTagged) {
+    m_logger << DEBUG << "     Jet is tagged " << SLogger::endmsg;
+    jetweight *= scalefactor;
+  }
+  else {
+    m_logger << DEBUG << "     Jet is not tagged " << SLogger::endmsg;
+    jetweight *= (1 - (scalefactor * effMC)) / (1 - effMC);
+  }
+  
+  m_logger << DEBUG << " jetweight " << jetweight << SLogger::endmsg;
+
+  return jetweight;
+}
+
+
+
+
 double BTaggingScaleTool::getScaleFactor( const UZH::Jet& jet, const double& sigma_bc, const double& sigma_udsg, const TString& jetCategory ) {
 
   double jetweight = getScaleFactor(jet.pt(), jet.eta(), jet.hadronFlavour(), isTagged(jet), sigma_bc, sigma_udsg, jetCategory);
@@ -209,6 +357,15 @@ double BTaggingScaleTool::getScaleFactor( const UZH::Jet& jet, const double& sig
   return jetweight;
   
 }
+double BTaggingScaleTool::getScaleFactor_veto( const UZH::Jet& jet, const double& sigma_bc, const double& sigma_udsg, const TString& jetCategory ) {
+
+  double jetweight = getScaleFactor_veto(jet.pt(), jet.eta(), jet.hadronFlavour(), isTagged_veto(jet), sigma_bc, sigma_udsg, jetCategory);
+
+  return jetweight;
+  
+}
+
+
 
 
 double BTaggingScaleTool::getPrunedSubjetScaleFactor( const UZH::Jet& jet, const double& sigma_bc, const double& sigma_udsg, const TString& jetCategory ) {
@@ -242,6 +399,25 @@ double BTaggingScaleTool::getScaleFactor( const UZH::JetVec& vJets, const double
 	     << SLogger::endmsg;
 
     scale *= getScaleFactor(*itJet, sigma_bc, sigma_udsg, jetCategory);
+  }  
+
+  m_logger << DEBUG << "BTaggingScaleTool::getScaleFactor done" << SLogger::endmsg;
+  return scale;
+
+}
+
+double BTaggingScaleTool::getScaleFactor_veto( const UZH::JetVec& vJets, const double& sigma_bc, const double& sigma_udsg, const TString& jetCategory) {
+
+  double scale = 1.;
+  
+  m_logger << DEBUG << "BTaggingScaleTool::getScaleFactor" << SLogger::endmsg;
+
+  for (std::vector< UZH::Jet>::const_iterator itJet = vJets.begin(); itJet < vJets.end(); ++itJet) {
+    m_logger << DEBUG << "Looking at jet " << itJet - vJets.begin()
+	     << ", pT=" << (*itJet).pt() << ", eta=" << (*itJet).eta()
+	     << SLogger::endmsg;
+
+    scale *= getScaleFactor_veto(*itJet, sigma_bc, sigma_udsg, jetCategory);
   }  
 
   m_logger << DEBUG << "BTaggingScaleTool::getScaleFactor done" << SLogger::endmsg;
@@ -287,6 +463,12 @@ void BTaggingScaleTool::bookHistograms() {
       Book( TH2F( *jetCat + "_" + *flav + "_all", *jetCat + "_" + *flav + "_all", nPtBins, ptBins, nEtaBins, etaBins ), m_effHistDirectory.c_str() );
     }
   }
+
+  for (std::vector<TString>::const_iterator flav = m_flavours.begin(); flav != m_flavours.end(); ++flav) {
+    Book( TH2F("jet_ak4_" + *flav + "_" + m_workingPoint_veto, "jet_ak4_" + *flav + "_" + m_workingPoint_veto, nPtBins, ptBins, nEtaBins, etaBins ), m_effHistDirectory.c_str() );
+    Book( TH2F( "jet_ak4_" + *flav + "_all", "jet_ak4_" + *flav + "_all", nPtBins, ptBins, nEtaBins, etaBins ), m_effHistDirectory.c_str() );
+  }
+
   
 }
 
@@ -303,6 +485,22 @@ void BTaggingScaleTool::fillEfficiencies( const UZH::JetVec& vJets ) {
       Hist( "jet_" + flavourString + "_" + m_workingPoint, m_effHistDirectory.c_str() )->Fill( itJet->pt(), itJet->eta() );
     }
     Hist( "jet_" + flavourString + "_all", m_effHistDirectory.c_str() )->Fill( itJet->pt(), itJet->eta() );
+  }
+  
+}
+
+/// function to fill jet b-tagging efficiencies for Ak4 used in veto
+void BTaggingScaleTool::fillEfficiencies_veto( const UZH::JetVec& vJets ) {
+  
+  for (std::vector< UZH::Jet>::const_iterator itJet = vJets.begin(); itJet < vJets.end(); ++itJet) {
+    m_logger << DEBUG << "Looking at jet " << itJet - vJets.begin()
+	     << ", pT=" << (*itJet).pt() << ", eta=" << (*itJet).eta()
+	     << SLogger::endmsg;
+    TString flavourString = flavourToString(itJet->hadronFlavour());
+    if (isTagged(*itJet)) {
+      Hist( "jet_ak4_" + flavourString + "_" + m_workingPoint_veto, m_effHistDirectory.c_str() )->Fill( itJet->pt(), itJet->eta() );
+    }
+    Hist( "jet_ak4_" + flavourString + "_all", m_effHistDirectory.c_str() )->Fill( itJet->pt(), itJet->eta() );
   }
   
 }
@@ -350,20 +548,53 @@ void BTaggingScaleTool::readEfficiencies() {
   inFile->Close();
   // delete inFile;
   
+  m_logger << INFO << "For Veto:Reading in b-tagging efficiencies from file " << m_effFile_veto << SLogger::endmsg;
+  auto inFile_veto = TFile::Open(m_effFile_veto.c_str());
+  
+  for (std::vector<TString>::const_iterator flav = m_flavours.begin(); flav != m_flavours.end(); ++flav) {
+    auto hPass_veto = (TH2F*) inFile_veto->Get( m_effHistDirectory + "/" + "jet_ak4_" + *flav + "_" + m_workingPoint_veto);
+    auto hAll_veto = (TH2F*) inFile_veto->Get( m_effHistDirectory + "/" + "jet_ak4_" + *flav + "_all");
+    TH2F hEff_veto = *((TH2F*) hPass_veto->Clone( m_effHistDirectory + "_jet_ak4_" + *flav + "_" + m_workingPoint_veto ));
+    hEff_veto.Divide(hAll_veto);
+    // delete hPass;
+    // delete hAll;
+    m_effMaps_veto[( "jet_ak4_" + *flav + "_" + m_workingPoint_veto).Data()] = hEff_veto;
+    m_logger << DEBUG << "effi Veto TH2D binsx: " << hEff_veto.GetNbinsX() << " binsy: " << hEff_veto.GetNbinsY() << SLogger::endmsg;
+  }
+  
+  inFile_veto->Close();
+
+
 }
 
 double BTaggingScaleTool::getEfficiency( const double& pt, const double& eta, const int& flavour, const TString& jetCategory ) {
-  
   double eff = 1.;
-  TH2F thisHist = m_effMaps[(jetCategory + "_" + flavourToString(flavour) + "_" + m_workingPoint).Data()];
-  m_logger << DEBUG << /*thisHist << " " << */ thisHist.GetName() << SLogger::endmsg;
-  int binx = thisHist.GetXaxis()->FindBin(pt);
-  int biny = thisHist.GetYaxis()->FindBin(eta);
-  m_logger << DEBUG << "binx = " << binx << " biny = " << biny << SLogger::endmsg;
-  m_logger << DEBUG << "maxx = " << thisHist.GetNbinsX() << " maxy = " << thisHist.GetNbinsY() << SLogger::endmsg;
-  // implement check for overflow
-  eff = thisHist.GetBinContent(binx, biny);
-  m_logger << DEBUG << "For "<< jetCategory << " with pt = " << pt << ", eta = " << eta << ", flavour = " << flavour << " returning efficiency =" << eff << SLogger::endmsg;
+ 
+  if (jetCategory!="jet_ak4"){
+ 
+    TH2F thisHist = m_effMaps[(jetCategory + "_" + flavourToString(flavour) + "_" + m_workingPoint).Data()];
+    m_logger << DEBUG << /*thisHist << " " << */ thisHist.GetName() << SLogger::endmsg;
+    int binx = thisHist.GetXaxis()->FindBin(pt);
+    int biny = thisHist.GetYaxis()->FindBin(eta);
+    m_logger << DEBUG << "binx = " << binx << " biny = " << biny << SLogger::endmsg;
+    m_logger << DEBUG << "maxx = " << thisHist.GetNbinsX() << " maxy = " << thisHist.GetNbinsY() << SLogger::endmsg;
+    // implement check for overflow
+    eff = thisHist.GetBinContent(binx, biny);
+    m_logger << DEBUG << "For "<< jetCategory << " with pt = " << pt << ", eta = " << eta << ", flavour = " << flavour << " returning efficiency =" << eff << SLogger::endmsg;
+ 
+  }else{
+    
+    TH2F thisHist_veto = m_effMaps_veto[("jet_ak4_" + flavourToString(flavour) + "_" + m_workingPoint_veto).Data()];
+    m_logger << DEBUG << /*thisHist << " " << */ thisHist_veto.GetName() << SLogger::endmsg;
+    int binx = thisHist_veto.GetXaxis()->FindBin(pt);
+    int biny = thisHist_veto.GetYaxis()->FindBin(eta);
+    m_logger << DEBUG << "binx = " << binx << " biny = " << biny << SLogger::endmsg;
+    m_logger << DEBUG << "maxx = " << thisHist_veto.GetNbinsX() << " maxy = " << thisHist_veto.GetNbinsY() << SLogger::endmsg;
+    // implement check for overflow
+    eff = thisHist_veto.GetBinContent(binx, biny);
+    m_logger << DEBUG << "For "<< jetCategory << " with pt = " << pt << ", eta = " << eta << ", flavour = " << flavour << " returning efficiency =" << eff << SLogger::endmsg;
+ 
+  }
   return eff;
   
 }
@@ -408,3 +639,20 @@ bool BTaggingScaleTool::isTagged( const double& csv ) {
   
 }
 
+
+bool BTaggingScaleTool::isTagged_veto(  const UZH::Jet& jet  ) {
+  
+  if (jet.csv() > currentWorkingPointCut_veto) {
+    return true;  
+  }
+  return false;
+  
+}
+bool BTaggingScaleTool::isTagged_veto( const double& csv ) {
+  
+  if (csv > currentWorkingPointCut_veto) {
+    return true;  
+  }
+  return false;
+  
+}
