@@ -37,12 +37,24 @@ class BTaggingScaleTool : public SToolBase {
   double getScaleFactor( const UZH::JetVec& vJets, const double& sigma_bc = 0., const double& sigma_udsg = 0., const TString& jetCategory = "jet" );
   
   double getPrunedSubjetScaleFactor( const UZH::JetVec& vJets, const double& sigma_bc = 0., const double& sigma_udsg = 0., const TString& jetCategory = "subjet_pruned" );
+ 
+  /// function for veto
+  double getScaleFactor_veto( const double& pt, const double& eta, const int& flavour, bool isTagged, const double& sigma_bc = 0., const double& sigma_udsg = 0., const TString& jetCategory_veto = "jet_ak4" );
+
+  double getScaleFactor_veto( const UZH::Jet& jet, const double& sigma_bc = 0., const double& sigma_udsg = 0., const TString& jetCategory_veto = "jet_ak4");
+
+  double getScaleFactor_veto( const UZH::JetVec& vJets, const double& sigma_bc = 0., const double& sigma_udsg = 0., const TString& jetCategory_veto = "jet_ak4" );
   
+
+
   /// function to book histograms for efficiencies
   void bookHistograms();
   
   /// function to fill jet b-tagging efficiencies
   void fillEfficiencies( const UZH::JetVec& vJets );
+ 
+  /// function to fill jet b-tagging efficiencies for veto
+  void fillEfficiencies_veto( const UZH::JetVec& vJets );
   
   /// function to fill subjet b-tagging efficiencies
   void fillPrunedSubjetEfficiencies( const UZH::JetVec& vJets );
@@ -62,27 +74,44 @@ class BTaggingScaleTool : public SToolBase {
   /// helper function to check if jet is b-tagged passing CSV value directly
   bool isTagged( const double& csv );
   
+  /// helper function to check if jet is b-tagged for veto
+  bool isTagged_veto( const UZH::Jet& jet );
+  
+  /// helper function to check if jet is b-tagged passing CSV value directly for veto
+  bool isTagged_veto( const double& csv );
+  
 
  private:
 
   std::string m_name;                 ///< name of the tool
   std::string m_tagger;
+  std::string m_tagger_veto ;
   std::string m_workingPoint;
+  std::string m_workingPoint_veto;
   std::string m_csvFile;
+  std::string m_csvFile_veto;
   std::string m_measurementType_udsg;
   std::string m_measurementType_bc;
   std::string m_effHistDirectory;
   std::string m_effFile;
+  std::string m_effFile_veto;
   std::vector<TString> m_jetCategories;
+  std::vector<TString> m_jetCategories_veto;
   std::vector<TString> m_flavours;
   
   std::map<std::string, double> wpCuts; // could have a function to set these
   double currentWorkingPointCut;
+  double currentWorkingPointCut_veto;
   std::map< std::string, TH2F > m_effMaps;
+  std::map< std::string, TH2F > m_effMaps_veto;
 
   std::unique_ptr<BTagCalibrationReader> m_reader;
   std::unique_ptr<BTagCalibrationReader> m_reader_up;
   std::unique_ptr<BTagCalibrationReader> m_reader_down;
+
+  std::unique_ptr<BTagCalibrationReader> m_reader_veto;
+  std::unique_ptr<BTagCalibrationReader> m_reader_veto_up;
+  std::unique_ptr<BTagCalibrationReader> m_reader_veto_down;
 
 };
 
