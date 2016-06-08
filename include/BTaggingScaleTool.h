@@ -32,11 +32,11 @@ class BTaggingScaleTool : public SToolBase {
 
   double getScaleFactor( const UZH::Jet& jet, const double& sigma_bc = 0., const double& sigma_udsg = 0., const TString& jetCategory = "jet");
   
-  double getPrunedSubjetScaleFactor( const UZH::Jet& jet, const double& sigma_bc = 0., const double& sigma_udsg = 0., const TString& jetCategory = "subjet_pruned" );
+  double getSoftdropSubjetScaleFactor( const UZH::Jet& jet, const double& sigma_bc = 0., const double& sigma_udsg = 0., const TString& jetCategory = "subjet_softdrop" );
 
   double getScaleFactor( const UZH::JetVec& vJets, const double& sigma_bc = 0., const double& sigma_udsg = 0., const TString& jetCategory = "jet" );
   
-  double getPrunedSubjetScaleFactor( const UZH::JetVec& vJets, const double& sigma_bc = 0., const double& sigma_udsg = 0., const TString& jetCategory = "subjet_pruned" );
+  double getSoftdropSubjetScaleFactor( const UZH::JetVec& vJets, const double& sigma_bc = 0., const double& sigma_udsg = 0., const TString& jetCategory = "subjet_softdrop" );
  
   /// function for veto
   double getScaleFactor_veto( const double& pt, const double& eta, const int& flavour, bool isTagged, const double& sigma_bc = 0., const double& sigma_udsg = 0., const TString& jetCategory_veto = "jet_ak4" );
@@ -57,7 +57,7 @@ class BTaggingScaleTool : public SToolBase {
   void fillEfficiencies_veto( const UZH::JetVec& vJets );
   
   /// function to fill subjet b-tagging efficiencies
-  void fillPrunedSubjetEfficiencies( const UZH::JetVec& vJets );
+  void fillSoftdropSubjetEfficiencies( const UZH::JetVec& vJets );
   
   /// function to read in b-tagging efficiencies
   void readEfficiencies();

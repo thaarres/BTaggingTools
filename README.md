@@ -1,5 +1,6 @@
 # BTaggingTools
 Tools for b-tagging scale factors and efficiencies
+CMSSW80 uses softrop subjets instead of pruned for subjet b-tagging 
 
 ## Properties
 
@@ -56,13 +57,13 @@ if (m_isSignal) {
   selectedJets.push_back(vectorJet);
   selectedJets.push_back(higgsJet);
   m_bTaggingScaleTool.fillEfficiencies(selectedJets);
-  m_bTaggingScaleTool.fillPrunedSubjetEfficiencies(selectedJets);
+  m_bTaggingScaleTool.fillSoftdropSubjetEfficiencies(selectedJets);
 }
 ```
 
 Furthermore, it is recommended to use the working points defined in the BTaggingScaleTool to identify if a jet is b-tagged, e.g.:
 ```
-if (m_bTaggingScaleTool.isTagged(higgsJet.subjet_pruned_csv()[i])) {
+if (m_bTaggingScaleTool.isTagged(higgsJet.subjet_softdrop_csv()[i])) {
   ++nTaggedSubjets;
 }
 ```
@@ -75,7 +76,7 @@ if (!m_isData) {
   selectedJets.push_back(vectorJet);
   selectedJets.push_back(higgsJet);
   // b_weightBtag = m_bTaggingScaleTool.getScaleFactor(selectedJets); // event b-tag SF weight
-  b_weightBtag = m_bTaggingScaleTool.getPrunedSubjetScaleFactor(selectedJets); // event b-tag SF weight
+  b_weightBtag = m_bTaggingScaleTool.getSoftdropSubjetScaleFactor(selectedJets); // event b-tag SF weight
     
     b_weight *= b_weightBtag;
   }

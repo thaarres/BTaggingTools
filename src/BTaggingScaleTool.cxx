@@ -154,7 +154,7 @@ void BTaggingScaleTool::BeginInputData( const SInputData& ) throw( SError ) {
 
   
   // jet categories for efficiencies
-  m_jetCategories = {"jet", "subjet_pruned"};
+  m_jetCategories = {"jet", "subjet_softdrop"};
   m_jetCategories_veto = {"jet_ak4"};
   m_flavours = {"b", "c", "udsg"};
   
@@ -368,15 +368,15 @@ double BTaggingScaleTool::getScaleFactor_veto( const UZH::Jet& jet, const double
 
 
 
-double BTaggingScaleTool::getPrunedSubjetScaleFactor( const UZH::Jet& jet, const double& sigma_bc, const double& sigma_udsg, const TString& jetCategory ) {
+double BTaggingScaleTool::getSoftdropSubjetScaleFactor( const UZH::Jet& jet, const double& sigma_bc, const double& sigma_udsg, const TString& jetCategory ) {
 
   double jetweight = 1;
   
-  for (int i = 0; i < jet.subjet_pruned_N(); ++i) {
-    m_logger << DEBUG << "Looking at pruned subjet " << i
-	     << ", pT=" << jet.subjet_pruned_pt()[i] << ", eta=" << jet.subjet_pruned_eta()[i]
+  for (int i = 0; i < jet.subjet_softdrop_N(); ++i) {
+    m_logger << DEBUG << "Looking at softdrop subjet " << i
+	     << ", pT=" << jet.subjet_softdrop_pt()[i] << ", eta=" << jet.subjet_softdrop_eta()[i]
 	     << SLogger::endmsg;
-    jetweight *= getScaleFactor(jet.subjet_pruned_pt()[i], jet.subjet_pruned_eta()[i], jet.subjet_pruned_hadronFlavour()[i], isTagged(jet.subjet_pruned_csv()[i]), sigma_bc, sigma_udsg, jetCategory);
+    jetweight *= getScaleFactor(jet.subjet_softdrop_pt()[i], jet.subjet_softdrop_eta()[i], jet.subjet_softdrop_hadronFlavour()[i], isTagged(jet.subjet_softdrop_csv()[i]), sigma_bc, sigma_udsg, jetCategory);
   }
 
   return jetweight;
@@ -429,21 +429,21 @@ double BTaggingScaleTool::getScaleFactor_veto( const UZH::JetVec& vJets, const d
 //
 // return scale for Jet collection
 //
-double BTaggingScaleTool::getPrunedSubjetScaleFactor( const UZH::JetVec& vJets, const double& sigma_bc, const double& sigma_udsg, const TString& jetCategory ) {
+double BTaggingScaleTool::getSoftdropSubjetScaleFactor( const UZH::JetVec& vJets, const double& sigma_bc, const double& sigma_udsg, const TString& jetCategory ) {
 
   double scale = 1.;
   
-  m_logger << DEBUG << "BTaggingScaleTool::getPrunedSubjetScaleFactor" << SLogger::endmsg;
+  m_logger << DEBUG << "BTaggingScaleTool::getSoftdropSubjetScaleFactor" << SLogger::endmsg;
 
   for (std::vector< UZH::Jet>::const_iterator itJet = vJets.begin(); itJet < vJets.end(); ++itJet) {
     m_logger << DEBUG << "Looking at jet " << itJet - vJets.begin()
 	     << ", pT=" << (*itJet).pt() << ", eta=" << (*itJet).eta()
 	     << SLogger::endmsg;
 
-    scale *= getPrunedSubjetScaleFactor(*itJet, sigma_bc, sigma_udsg, jetCategory);
+    scale *= getSoftdropSubjetScaleFactor(*itJet, sigma_bc, sigma_udsg, jetCategory);
   }  
 
-  m_logger << DEBUG << "BTaggingScaleTool::getPrunedSubjetScaleFactor done" << SLogger::endmsg;
+  m_logger << DEBUG << "BTaggingScaleTool::getSoftdropSubjetScaleFactor done" << SLogger::endmsg;
   return scale;
 
 }
@@ -506,21 +506,21 @@ void BTaggingScaleTool::fillEfficiencies_veto( const UZH::JetVec& vJets ) {
 }
 
 /// function to fill subjet b-tagging efficiencies
-void BTaggingScaleTool::fillPrunedSubjetEfficiencies( const UZH::JetVec& vJets ) {
+void BTaggingScaleTool::fillSoftdropSubjetEfficiencies( const UZH::JetVec& vJets ) {
   
   for (std::vector< UZH::Jet>::const_iterator itJet = vJets.begin(); itJet < vJets.end(); ++itJet) {
     m_logger << DEBUG << "Looking at jet " << itJet - vJets.begin()
 	     << ", pT=" << (*itJet).pt() << ", eta=" << (*itJet).eta()
 	     << SLogger::endmsg;
-    for (int i = 0; i < itJet->subjet_pruned_N(); ++i) {
-      m_logger << DEBUG << "Looking at pruned subjet " << i
-  	     << ", pT=" << itJet->subjet_pruned_pt()[i] << ", eta=" << itJet->subjet_pruned_eta()[i]
+    for (int i = 0; i < itJet->subjet_softdrop_N(); ++i) {
+      m_logger << DEBUG << "Looking at softdrop subjet " << i
+  	     << ", pT=" << itJet->subjet_softdrop_pt()[i] << ", eta=" << itJet->subjet_softdrop_eta()[i]
   	     << SLogger::endmsg;
-      TString flavourString = flavourToString(itJet->subjet_pruned_hadronFlavour()[i]);
-      if (isTagged(itJet->subjet_pruned_csv()[i])) {
-        Hist( "subjet_pruned_" + flavourString + "_" + m_workingPoint, m_effHistDirectory.c_str() )->Fill( itJet->subjet_pruned_pt()[i], itJet->subjet_pruned_eta()[i] );
+      TString flavourString = flavourToString(itJet->subjet_softdrop_hadronFlavour()[i]);
+      if (isTagged(itJet->subjet_softdrop_csv()[i])) {
+        Hist( "subjet_softdrop_" + flavourString + "_" + m_workingPoint, m_effHistDirectory.c_str() )->Fill( itJet->subjet_softdrop_pt()[i], itJet->subjet_softdrop_eta()[i] );
       }
-      Hist( "subjet_pruned_" + flavourString + "_all", m_effHistDirectory.c_str() )->Fill( itJet->subjet_pruned_pt()[i], itJet->subjet_pruned_eta()[i] );
+      Hist( "subjet_softdrop_" + flavourString + "_all", m_effHistDirectory.c_str() )->Fill( itJet->subjet_softdrop_pt()[i], itJet->subjet_softdrop_eta()[i] );
     }
   }
   
